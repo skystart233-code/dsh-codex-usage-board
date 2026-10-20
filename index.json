@@ -32,19 +32,20 @@
         "category": "settings",
         "keywords": ["usage", "tokens", "heatmap", "dashboard", "privacy"],
         "labels": ["local-first", "read-only"],
-        "sortKeys": { "updated": 1792473240 }
+        "sortKeys": { "updated": 1792473385" }
       },
       "versions": [
         {
           "version": "1.0.0",
-          "publishTimestamp": 1792473240,
+          "publishTimestamp": 1792473385",
           "source": {
             "type": "git",
             "url": "https://github.com/skystart233-code/dsh-codex-usage-board",
-            "commit": "e9e1698dc871f7cfb4516c04870cd30d61eec5e5"
+            "commit": "aa47439eb32b9766cc64f17ddce5f15fb472f909"
           }
         }
       ]
     }
   ]
 }
+
