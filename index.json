@@ -22,8 +22,8 @@
       "name": "dsh-codex-usage-board",
       "title": { "en": "Usage Board", "zh": "DSH 的 Codex 用量看板" },
       "description": {
-        "en": "Settings page with a 53-week token heatmap, five lifetime figures, top tools, skills, streaks and a 30-day per-model / per-session breakdown. Name, handle and portrait are editable and stored locally.",
-        "zh": "设置页里的用量看板：53 周 Token 热力图、五个累计数字、常用工具、技能、连续天数，以及近 30 天按模型 / 按会话明细。名字、账号、头像可自己改，只存本机。"
+        "en": "Settings page with a 53-week token heatmap, five lifetime figures, top tools, skills, streaks and a 30-day per-model / per-session breakdown. Hover the portrait to change it; click the name or handle to edit it in place. Stored locally.",
+        "zh": "设置页里的用量看板：53 周 Token 热力图、五个累计数字、常用工具、技能、连续天数，以及近 30 天按模型 / 按会话明细。头像鼠标移上去就能换，名字和账号点一下就地改，只存本机。"
       },
       "icon": "icon.svg",
       "homepage": "https://github.com/skystart233-code/dsh-codex-usage-board",
@@ -32,20 +32,19 @@
         "category": "settings",
         "keywords": ["usage", "tokens", "heatmap", "dashboard", "privacy"],
         "labels": ["local-first", "read-only"],
-        "sortKeys": { "updated": 1792473385 }
+        "sortKeys": { "updated": 1792479029 }
       },
       "versions": [
         {
-          "version": "1.0.0",
-          "publishTimestamp": 1792473385,
+          "version": "1.1.0",
+          "publishTimestamp": 1792479029,
           "source": {
             "type": "git",
             "url": "https://github.com/skystart233-code/dsh-codex-usage-board",
-            "commit": "aa47439eb32b9766cc64f17ddce5f15fb472f909"
+            "commit": "d28740316fb00a8a381c23994687ba5b57a5ac23"
           }
         }
       ]
     }
   ]
 }
-
