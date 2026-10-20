@@ -33,7 +33,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "test": "node test/fold.test.mjs && node test/profile.test.mjs"
+    "test": "node test/fold.test.mjs && node test/profile.test.mjs && node test/routes.test.mjs"
   },
   "dsh": {
     "bundle": { "patch": "./cordis.patch.yml" },

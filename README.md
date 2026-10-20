@@ -104,6 +104,7 @@ Token 活动                                  [每天][每周][累计总量]
 ```bash
 node test/fold.test.mjs                        # 聚合逻辑，无依赖
 node test/profile.test.mjs                     # 资料校验与落盘，无依赖
+node test/routes.test.mjs                      # 两条路由与错误分支，无依赖
 npm install --no-save react@18 react-dom@18    # 仅渲染测试需要
 node test/render.test.mjs                      # 加载中 / 有数据 / 空数据
 ```
