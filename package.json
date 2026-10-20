@@ -1,6 +1,6 @@
 {
   "name": "dsh-codex-usage-board",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "type": "module",
   "description": "Usage dashboard for DeepSeek Harness Settings: token heatmap, top tools, skills, streaks and per-model detail, folded from the local session logs.",
   "license": "MIT",
