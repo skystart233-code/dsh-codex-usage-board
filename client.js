@@ -968,7 +968,7 @@ window.__ModuleLoader__.load({
       const failure = state.status === 'error'
         ? h('div', { className: 'dshUsage-state dshUsage-error' }, t('failed', { message: state.error }))
         : null;
-      const empty = ready && !hasUsage ? h('div', { className: 'dshUsage-state' }, t('empty')) : null;
+      const empty = ready && state.status === 'ready' && !hasUsage ? h('div', { className: 'dshUsage-state' }, t('empty')) : null;
       const footer = ready ? h('div', { className: 'dshUsage-note' },
         t('footnote', {
           scanned: data.scan?.scanned ?? 0,
