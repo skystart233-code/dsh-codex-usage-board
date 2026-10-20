@@ -68,6 +68,27 @@ window.__ModuleLoader__.load({
       return { ...DEFAULT_PROFILE };
     }
 
+    /** Browser flag that records the first-visit tip as already read. */
+    const TIP_KEY = `${NS}.tipSeen`;
+
+    /** @returns {boolean} whether the first-visit tip was dismissed in this browser. */
+    function tipSeen() {
+      try {
+        return window.localStorage.getItem(TIP_KEY) === '1';
+      } catch {
+        return false;
+      }
+    }
+
+    /** @returns {void} */
+    function rememberTip() {
+      try {
+        window.localStorage.setItem(TIP_KEY, '1');
+      } catch {
+        /* without storage the tip simply replays next visit */
+      }
+    }
+
     const en = {
       nav: 'Usage',
       refresh: 'Refresh',
@@ -124,8 +145,8 @@ window.__ModuleLoader__.load({
       changeAvatar: 'Change portrait',
       avatarType: 'Choose a PNG, JPEG, WebP, GIF or SVG image.',
       avatarTooLarge: 'Image must be 256 KB or smaller.',
-      profileHint: 'Hover the portrait to change it; click the name or handle to edit. Saved on this machine at ~/.dsh/usage-board/profile.json.',
-      profileHintLocal: 'Hover the portrait to change it; click the name or handle to edit. Kept in this browser.',
+      tipText: 'Click the portrait to change it, or the name and handle to edit them.',
+      tipOk: 'Got it',
       profileNamePlaceholder: 'Your name',
       profileHandlePlaceholder: '@handle',
       profileFailed: 'Could not save: {message}',
@@ -187,8 +208,8 @@ window.__ModuleLoader__.load({
       changeAvatar: '更换头像',
       avatarType: '请选择 PNG、JPEG、WebP、GIF 或 SVG 图片。',
       avatarTooLarge: '图片不能超过 256 KB。',
-      profileHint: '鼠标移到头像上可以换图，点名字或账号可以直接改。保存在本机 ~/.dsh/usage-board/profile.json。',
-      profileHintLocal: '鼠标移到头像上可以换图，点名字或账号可以直接改。只保存在这个浏览器。',
+      tipText: '点头像可以换图，点名字或账号可以直接改。',
+      tipOk: '知道了',
       profileNamePlaceholder: '你的名字',
       profileHandlePlaceholder: '@账号',
       profileFailed: '保存失败：{message}',
@@ -218,7 +239,10 @@ window.__ModuleLoader__.load({
       '.dshUsage-lineInput:focus{border-color:var(--dsw-alias-brand-primary);box-shadow:0 0 0 3px rgba(59,110,240,.16);background:var(--dsw-alias-bg-layer-1)}',
       '.dshUsage-file{display:none}',
       '.dshUsage-profileError{font-size:12px;line-height:18px;color:var(--dsw-alias-state-error-primary);margin-top:8px}',
-      '.dshUsage-hint{font-size:11px;line-height:16px;color:var(--dsw-alias-label-secondary);margin-top:10px}',
+      '.dshUsage-tip{display:flex;align-items:center;gap:12px;margin-top:14px;max-width:420px;padding:10px 12px;border-radius:10px;background:var(--dsw-alias-bg-layer-1);border:.5px solid var(--dsw-alias-border-l1);box-shadow:0 8px 24px rgba(0,0,0,.12);text-align:left;animation:dshUsageTipIn .18s ease-out}',
+      '.dshUsage-tipText{font-size:13px;line-height:20px;min-width:0}',
+      '.dshUsage-tipBtn{appearance:none;font:inherit;font-size:12px;line-height:18px;height:26px;padding:0 10px;border-radius:7px;border:0;background:var(--dsw-alias-brand-primary);color:#fff;cursor:pointer;flex:none}',
+      '@keyframes dshUsageTipIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}',
       '.dshUsage-stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border:.5px solid var(--dsw-alias-border-l1);border-radius:12px;overflow:hidden}',
       '.dshUsage-stat{position:relative;padding:12px 8px;text-align:center;min-width:0}',
       '.dshUsage-stat + .dshUsage-stat::before{content:"";position:absolute;left:0;top:50%;transform:translateY(-50%);height:22px;border-left:.5px solid var(--dsw-alias-border-l2)}',
@@ -494,10 +518,11 @@ window.__ModuleLoader__.load({
      * Nothing about the reader is baked into this bundle: the saved profile
      * arrives with the report, and every edit posts the whole profile back.
      * Hovering the portrait reveals a camera mark; hovering the name or handle
-     * reveals the gray field it opens into on click. With no portrait the
-     * header falls back to a monogram, and with no name it shows a neutral
-     * localized label, so a fresh install never looks like someone else's
-     * account.
+     * reveals the gray field it opens into on click. A one-time tip under the
+     * header says so on the first visit and never comes back, so the page is
+     * not permanently captioned. With no portrait the header falls back to a
+     * monogram, and with no name it shows a neutral localized label, so a fresh
+     * install never looks like someone else's account.
      * @param {{ profile?: object, t: Function, onSaved?: Function }} props - saved profile, translator, save callback.
      * @returns {React.ReactElement} the header.
      */
@@ -508,7 +533,25 @@ window.__ModuleLoader__.load({
       const handle = typeof profile.handle === 'string' ? profile.handle : '';
       const avatar = typeof profile.avatar === 'string' ? profile.avatar : '';
       const [error, setError] = useState('');
+      const [tip, setTip] = useState(() => !tipSeen());
       const fileRef = useRef(null);
+
+      /** Close the first-visit tip and remember that it was read. */
+      const dismissTip = () => {
+        setTip(false);
+        rememberTip();
+      };
+
+      useEffect(() => {
+        if (!tip) return undefined;
+        const onKey = (event) => {
+          if (event.key !== 'Escape') return;
+          setTip(false);
+          rememberTip();
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+      }, [tip]);
 
       /**
        * Persist one whole profile: the Host replaces its file, while a
@@ -568,7 +611,6 @@ window.__ModuleLoader__.load({
 
       const shownName = name.length > 0 ? name : t('profileDefaultName');
       const monogram = Array.from(shownName)[0] ?? '·';
-      const hintKey = PROFILE_STORE.local === undefined ? 'profileHint' : 'profileHintLocal';
 
       return h('div', { className: 'dshUsage-profile' },
         h('div', { className: 'dshUsage-avatarField' },
@@ -603,7 +645,11 @@ window.__ModuleLoader__.load({
           onCommit: (value) => { void commit({ name, handle: value, avatar: avatar === '' ? null : avatar }); },
         }),
         error.length > 0 ? h('div', { className: 'dshUsage-profileError' }, error) : null,
-        h('div', { className: 'dshUsage-hint' }, t(hintKey)));
+        tip
+          ? h('div', { className: 'dshUsage-tip', role: 'note' },
+            h('div', { className: 'dshUsage-tipText' }, t('tipText')),
+            h('button', { type: 'button', className: 'dshUsage-tipBtn', onClick: dismissTip }, t('tipOk')))
+          : null);
     }
 
     /**

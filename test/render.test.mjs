@@ -55,9 +55,13 @@ const sample = {
  * @param {Record<string, unknown>} [extra] - extra globals for the module's VM context.
  * @returns {{ Component: Function, options: object }} captured registration.
  */
-function loadModule(text, extra = {}) {
+function loadModule(text, extra = {}, storedTip = null) {
   let registration;
   const window = {
+    localStorage: {
+      getItem: () => storedTip,
+      setItem: () => {},
+    },
     __ModuleLoader__: {
       load(definition) {
         registration = definition.factory((name) => {
@@ -123,11 +127,21 @@ assert.match(loadingMarkup, /dshUsage-avatarMark/, 'no portrait falls back to a 
 assert.match(loadingMarkup, /class="dshUsage-avatarWrap"/, 'the portrait is a button');
 assert.match(loadingMarkup, /dshUsage-avatarBadge/, 'the portrait advertises the change mark');
 assert.match(loadingMarkup, /class="dshUsage-name dshUsage-line dshUsage-lineEmpty"/, 'an empty name opens into a field');
-assert.match(loadingMarkup, /Hover the portrait to change it/, 'the hint explains the inline editing');
+assert.match(loadingMarkup, /role="note"/, 'the first visit shows the tip');
+assert.match(loadingMarkup, /Click the portrait to change it/, 'the tip explains the inline editing');
+assert.match(loadingMarkup, />Got it</, 'the tip can be dismissed');
+assert.doesNotMatch(loadingMarkup, /class="dshUsage-hint"/, 'the header carries no permanent caption');
 assert.match(loadingMarkup, /type="file"/, 'a file picker is present');
 assert.doesNotMatch(loadingMarkup, /data:image\/jpeg;base64/, 'no portrait is embedded in the bundle');
 assert.match(loadingMarkup, /Reading session logs…/, 'loading state renders');
 assert.match(loadingMarkup, /\.dshUsage-heat\{/, 'stylesheet travels with the tree');
+
+// --- the tip does not come back once it was dismissed ------------------------
+const seenModule = loadModule(source, {}, '1');
+const seenMarkup = renderToStaticMarkup(React.createElement(seenModule.Component, { t: (key) => key }));
+assert.doesNotMatch(seenMarkup, /role="note"/, 'a dismissed tip stays away');
+assert.doesNotMatch(seenMarkup, /Click the portrait to change it/, 'the tip text is gone too');
+assert.match(seenMarkup, /dshUsage-name dshUsage-line/, 'the header still renders');
 
 // --- loaded render -----------------------------------------------------------
 const readySource = source.replace(

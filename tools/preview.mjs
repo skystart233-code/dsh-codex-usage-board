@@ -81,14 +81,21 @@ const patched = source.replace(
  * Render one variant of the page to a standalone HTML file.
  * @param {string} text - client.js source to evaluate.
  * @param {string} file - output file name under docs/.
+ * @param {{ css?: string, seen?: boolean }} [options] - extra stylesheet, and whether the first-visit tip counts as read.
  * @returns {void}
  */
-function renderTo(text, file, extraCss = '') {
+function renderTo(text, file, options = {}) {
+  const extraCss = options.css ?? '';
+  const seen = options.seen ?? true;
   let registration;
   let dicts;
   let component;
   const sandbox = {
     window: {
+      localStorage: {
+        getItem: () => (seen ? '1' : null),
+        setItem: () => {},
+      },
       __ModuleLoader__: {
         load(definition) {
           registration = definition.factory((name) => {
@@ -151,12 +158,5 @@ ${extraCss}
 
 renderTo(patched, 'preview.html');
 
-const editingSource = patched.replace(
-  "const [editing, setEditing] = useState(false);",
-  "const [editing, setEditing] = useState(true);",
-);
-if (editingSource === patched) throw new Error('the inline editor no longer opens from this patch');
-renderTo(editingSource, 'preview-edit.html', [
-  '.dshUsage-avatarBadge{opacity:1 !important;transform:none !important}',
-  '.dshUsage-avatar{filter:brightness(.92)}',
-].join('\n'));
+// The first-visit tip.
+renderTo(patched, 'preview-tip.html', { seen: false, css: '.dshUsage-tip{animation:none !important;opacity:1 !important}' });
