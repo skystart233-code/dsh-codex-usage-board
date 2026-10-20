@@ -1,0 +1,50 @@
+{
+  "format": 1,
+  "title": { "en": "DSH Usage Board", "zh": "用量看板" },
+  "description": {
+    "en": "Usage dashboards for DeepSeek Harness Settings, folded from the local session logs.",
+    "zh": "给 DeepSeek Harness 设置页用的用量看板，数据来自本机会话日志。"
+  },
+  "metadata": {
+    "categories": {
+      "settings": { "title": { "en": "Settings", "zh": "设置页" } }
+    },
+    "labels": {
+      "local-first": { "title": { "en": "Local-first", "zh": "本地优先" } },
+      "read-only": { "title": { "en": "Read-only", "zh": "只读" } }
+    },
+    "sortKeys": {
+      "updated": { "title": { "en": "Last updated", "zh": "最近更新" }, "order": "desc" }
+    }
+  },
+  "plugins": [
+    {
+      "name": "dsh-codex-usage-board",
+      "title": { "en": "Usage Board", "zh": "DSH 的 Codex 用量看板" },
+      "description": {
+        "en": "Settings page with a 53-week token heatmap, five lifetime figures, top tools, skills, streaks and a 30-day per-model / per-session breakdown. Name, handle and portrait are editable and stored locally.",
+        "zh": "设置页里的用量看板：53 周 Token 热力图、五个累计数字、常用工具、技能、连续天数，以及近 30 天按模型 / 按会话明细。名字、账号、头像可自己改，只存本机。"
+      },
+      "icon": "icon.svg",
+      "homepage": "https://github.com/skystart233-code/dsh-codex-usage-board",
+      "repository": { "url": "https://github.com/skystart233-code/dsh-codex-usage-board" },
+      "metadata": {
+        "category": "settings",
+        "keywords": ["usage", "tokens", "heatmap", "dashboard", "privacy"],
+        "labels": ["local-first", "read-only"],
+        "sortKeys": { "updated": 1792473240 }
+      },
+      "versions": [
+        {
+          "version": "1.0.0",
+          "publishTimestamp": 1792473240,
+          "source": {
+            "type": "git",
+            "url": "https://github.com/skystart233-code/dsh-codex-usage-board",
+            "commit": "e9e1698dc871f7cfb4516c04870cd30d61eec5e5"
+          }
+        }
+      ]
+    }
+  ]
+}
