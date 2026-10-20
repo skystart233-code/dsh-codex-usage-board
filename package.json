@@ -1,0 +1,49 @@
+{
+  "name": "dsh-codex-usage-board",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Usage dashboard for DeepSeek Harness Settings: token heatmap, top tools, skills, streaks and per-model detail, folded from the local session logs.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/skystart233-code/dsh-codex-usage-board.git"
+  },
+  "homepage": "https://github.com/skystart233-code/dsh-codex-usage-board#readme",
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "usage",
+    "heatmap",
+    "dashboard",
+    "tokens"
+  ],
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node test/fold.test.mjs && node test/profile.test.mjs"
+  },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-settings"
+      ]
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Usage Board",
+    "description": "Adds a Usage page to Settings: token activity heatmap, top tools, skills, streaks and recent per-model detail from the local session logs."
+  }
+}
