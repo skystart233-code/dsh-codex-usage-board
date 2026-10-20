@@ -120,7 +120,11 @@ const loadingMarkup = renderToStaticMarkup(React.createElement(loadingModule.Com
 assert.match(loadingMarkup, /dshUsage-root/);
 assert.match(loadingMarkup, /Your usage/, 'a fresh install shows the neutral default name');
 assert.match(loadingMarkup, /dshUsage-avatarMark/, 'no portrait falls back to a monogram');
-assert.match(loadingMarkup, /Edit profile/, 'the header offers the editor');
+assert.match(loadingMarkup, /class="dshUsage-avatarWrap"/, 'the portrait is a button');
+assert.match(loadingMarkup, /dshUsage-avatarBadge/, 'the portrait advertises the change mark');
+assert.match(loadingMarkup, /class="dshUsage-name dshUsage-line dshUsage-lineEmpty"/, 'an empty name opens into a field');
+assert.match(loadingMarkup, /Hover the portrait to change it/, 'the hint explains the inline editing');
+assert.match(loadingMarkup, /type="file"/, 'a file picker is present');
 assert.doesNotMatch(loadingMarkup, /data:image\/jpeg;base64/, 'no portrait is embedded in the bundle');
 assert.match(loadingMarkup, /Reading session logs…/, 'loading state renders');
 assert.match(loadingMarkup, /\.dshUsage-heat\{/, 'stylesheet travels with the tree');
@@ -135,8 +139,8 @@ const readyModule = loadModule(readySource, { __USAGE_SAMPLE__: sample });
 const readyMarkup = renderToStaticMarkup(React.createElement(readyModule.Component, { t: (key) => key }));
 
 assert.doesNotMatch(readyMarkup, /Reading session logs/);
-assert.match(readyMarkup, /Ava Chen/, 'the saved name renders');
-assert.match(readyMarkup, /@ava/, 'the saved handle renders');
+assert.match(readyMarkup, /class="dshUsage-name dshUsage-line"[^>]*>Ava Chen</, 'the saved name renders as an editable line');
+assert.match(readyMarkup, /class="dshUsage-handle dshUsage-line"[^>]*>@ava</, 'the saved handle renders as an editable line');
 assert.match(readyMarkup, /src="data:image\/png;base64,iVBORw0KGgo="/, 'the saved portrait renders');
 const compact = new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 });
 assert.ok(readyMarkup.includes(`>${compact.format(2_178_500)}<`), 'lifetime total uses the compact format');

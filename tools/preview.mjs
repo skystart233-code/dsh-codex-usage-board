@@ -83,7 +83,7 @@ const patched = source.replace(
  * @param {string} file - output file name under docs/.
  * @returns {void}
  */
-function renderTo(text, file) {
+function renderTo(text, file, extraCss = '') {
   let registration;
   let dicts;
   let component;
@@ -142,6 +142,7 @@ function renderTo(text, file) {
 }
 html,body{margin:0;padding:0;background:#fff}
 body{padding:36px 40px 44px;font-family:"Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif;color:var(--dsw-alias-label-primary)}
+${extraCss}
 </style></head><body>${raw}</body></html>`;
   fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
   fs.writeFileSync(path.join(root, 'docs', file), html);
@@ -150,14 +151,12 @@ body{padding:36px 40px 44px;font-family:"Segoe UI","PingFang SC","Microsoft YaHe
 
 renderTo(patched, 'preview.html');
 
-const editingSource = patched
-  .replace(
-    "const [editing, setEditing] = useState(false);",
-    "const [editing, setEditing] = useState(true);",
-  )
-  .replace(
-    "useState({ name: '', handle: '', avatar: '' });",
-    "useState({ name: '我的用量', handle: '@local-user', avatar: '' });",
-  );
-if (editingSource === patched) throw new Error('the editor-state patch no longer applies');
-renderTo(editingSource, 'preview-edit.html');
+const editingSource = patched.replace(
+  "const [editing, setEditing] = useState(false);",
+  "const [editing, setEditing] = useState(true);",
+);
+if (editingSource === patched) throw new Error('the inline editor no longer opens from this patch');
+renderTo(editingSource, 'preview-edit.html', [
+  '.dshUsage-avatarBadge{opacity:1 !important;transform:none !important}',
+  '.dshUsage-avatar{filter:brightness(.92)}',
+].join('\n'));

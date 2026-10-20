@@ -18,6 +18,55 @@ window.__ModuleLoader__.load({
 
     /** Locale namespace owned by this plugin. */
     const NS = 'codex-usage-board';
+    /** Where the editable header is stored: the Host's profile file. */
+    const PROFILE_STORE = { route: 'api/codex-usage.profile' };
+    /** Largest portrait the Host accepts, in bytes. */
+    const AVATAR_LIMIT = 256 * 1024;
+    /** The header before anyone personalizes it. */
+    const DEFAULT_PROFILE = { name: '', handle: '', avatar: null };
+
+    /**
+     * Read a browser-local profile override, when this build keeps one.
+     * @returns {object | null} the stored profile, or null.
+     */
+    function readLocalProfile() {
+      if (PROFILE_STORE.local === undefined) return null;
+      try {
+        const raw = window.localStorage.getItem(PROFILE_STORE.local);
+        const parsed = raw === null ? null : JSON.parse(raw);
+        return parsed !== null && typeof parsed === 'object' ? parsed : null;
+      } catch {
+        return null;
+      }
+    }
+
+    /**
+     * Store a browser-local profile override, when this build keeps one.
+     * @param {object} profile - profile to remember.
+     * @returns {void}
+     */
+    function writeLocalProfile(profile) {
+      if (PROFILE_STORE.local === undefined) return;
+      try {
+        window.localStorage.setItem(PROFILE_STORE.local, JSON.stringify(profile));
+      } catch {
+        /* a full or blocked storage only costs persistence */
+      }
+    }
+
+    /**
+     * The header to render: a saved override wins over what the Host serves,
+     * which wins over the neutral default.
+     * @param {object | undefined} data - report payload, when it arrived.
+     * @returns {{ name: string, handle: string, avatar: string | null }} the profile.
+     */
+    function initialProfile(data) {
+      const stored = readLocalProfile();
+      if (stored !== null) return { ...DEFAULT_PROFILE, ...stored };
+      const served = data === undefined ? undefined : data.profile;
+      if (served !== null && typeof served === 'object') return { ...DEFAULT_PROFILE, ...served };
+      return { ...DEFAULT_PROFILE };
+    }
 
     const en = {
       nav: 'Usage',
@@ -70,21 +119,16 @@ window.__ModuleLoader__.load({
       footnote: 'Scanned {scanned} of {sessions} sessions · updated {time}',
       truncated: 'Older sessions are beyond the scan limit and are not counted.',
       profileDefaultName: 'Your usage',
-      editProfile: 'Edit profile',
       profileName: 'Name',
       profileHandle: 'Handle',
-      profileAvatar: 'Portrait',
-      profileAvatarEmpty: 'No portrait',
-      chooseImage: 'Upload image',
-      removeImage: 'Remove',
-      save: 'Save',
-      cancel: 'Cancel',
-      saving: 'Saving…',
+      changeAvatar: 'Change portrait',
       avatarType: 'Choose a PNG, JPEG, WebP, GIF or SVG image.',
       avatarTooLarge: 'Image must be 256 KB or smaller.',
-      profileHint: 'Stored on this machine at ~/.dsh/usage-board/profile.json.',
+      profileHint: 'Hover the portrait to change it; click the name or handle to edit. Saved on this machine at ~/.dsh/usage-board/profile.json.',
+      profileHintLocal: 'Hover the portrait to change it; click the name or handle to edit. Kept in this browser.',
       profileNamePlaceholder: 'Your name',
       profileHandlePlaceholder: '@handle',
+      profileFailed: 'Could not save: {message}',
     };
 
     const zh = {
@@ -138,21 +182,16 @@ window.__ModuleLoader__.load({
       footnote: '已扫描 {scanned}/{sessions} 个会话 · 更新于 {time}',
       truncated: '更早的会话超出扫描上限，未计入统计。',
       profileDefaultName: '我的用量',
-      editProfile: '编辑资料',
       profileName: '名字',
       profileHandle: '账号',
-      profileAvatar: '头像',
-      profileAvatarEmpty: '未设置头像',
-      chooseImage: '上传图片',
-      removeImage: '移除',
-      save: '保存',
-      cancel: '取消',
-      saving: '保存中…',
+      changeAvatar: '更换头像',
       avatarType: '请选择 PNG、JPEG、WebP、GIF 或 SVG 图片。',
       avatarTooLarge: '图片不能超过 256 KB。',
-      profileHint: '保存在本机 ~/.dsh/usage-board/profile.json。',
+      profileHint: '鼠标移到头像上可以换图，点名字或账号可以直接改。保存在本机 ~/.dsh/usage-board/profile.json。',
+      profileHintLocal: '鼠标移到头像上可以换图，点名字或账号可以直接改。只保存在这个浏览器。',
       profileNamePlaceholder: '你的名字',
       profileHandlePlaceholder: '@账号',
+      profileFailed: '保存失败：{message}',
     };
 
     const CSS = [
@@ -161,28 +200,25 @@ window.__ModuleLoader__.load({
       '.dshUsage-actionBtn:hover:not(:disabled){background:var(--dsw-alias-bg-layer-2)}',
       '.dshUsage-actionBtn:disabled{opacity:.55;cursor:default}',
       '.dshUsage-profile{display:flex;flex-direction:column;align-items:center;text-align:center}',
-      '.dshUsage-avatar{width:104px;height:104px;border-radius:50%;object-fit:cover;display:block;background:var(--dsw-alias-bg-layer-2);box-shadow:0 0 0 .5px var(--dsw-alias-border-l1)}',
+      '.dshUsage-avatarField{position:relative;display:inline-flex;align-items:center;justify-content:center}',
+      '.dshUsage-avatarWrap{appearance:none;border:0;padding:0;margin:0;background:transparent;border-radius:50%;position:relative;display:block;line-height:0;cursor:pointer}',
+      '.dshUsage-avatarWrap:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:3px}',
+      '.dshUsage-avatar{width:104px;height:104px;border-radius:50%;object-fit:cover;display:block;background:var(--dsw-alias-bg-layer-2);box-shadow:0 0 0 .5px var(--dsw-alias-border-l1);transition:filter .15s ease}',
+      '.dshUsage-avatarWrap:hover .dshUsage-avatar{filter:brightness(.9)}',
+      '.dshUsage-avatarBadge{position:absolute;right:0;bottom:0;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);box-shadow:0 1px 4px rgba(0,0,0,.24),0 0 0 .5px var(--dsw-alias-border-l1);opacity:0;transform:scale(.85);transition:opacity .15s ease,transform .15s ease;pointer-events:none}',
+      '.dshUsage-avatarWrap:hover .dshUsage-avatarBadge,.dshUsage-avatarWrap:focus-visible .dshUsage-avatarBadge{opacity:1;transform:scale(1)}',
+      '.dshUsage-avatarMark{display:flex;align-items:center;justify-content:center;font-size:36px;line-height:1;font-weight:600;color:var(--dsw-alias-label-secondary);text-transform:uppercase;letter-spacing:.5px;user-select:none}',
       '.dshUsage-name{font-size:24px;line-height:32px;font-weight:600;margin-top:14px}',
       '.dshUsage-handle{font-size:14px;line-height:20px;color:var(--dsw-alias-label-secondary);margin-top:2px}',
-      '.dshUsage-avatarMark{display:flex;align-items:center;justify-content:center;font-size:36px;line-height:1;font-weight:600;color:var(--dsw-alias-label-secondary);text-transform:uppercase;letter-spacing:.5px;user-select:none}',
-      '.dshUsage-editBtn{appearance:none;font:inherit;font-size:12px;line-height:18px;margin-top:10px;padding:2px 8px;border-radius:6px;border:.5px solid var(--dsw-alias-border-l2);background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer}',
-      '.dshUsage-editBtn:hover{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary)}',
-      '.dshUsage-form{display:flex;flex-direction:column;gap:12px;width:100%;max-width:360px;margin-top:14px;text-align:left}',
-      '.dshUsage-field{display:flex;flex-direction:column;gap:6px;min-width:0}',
-      '.dshUsage-label{font-size:12px;line-height:16px;color:var(--dsw-alias-label-secondary)}',
-      '.dshUsage-input{appearance:none;font:inherit;font-size:14px;line-height:20px;height:34px;padding:0 10px;border-radius:8px;border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);min-width:0;box-sizing:border-box}',
-      '.dshUsage-input:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:0}',
-      '.dshUsage-avatarRow{display:flex;align-items:center;gap:12px;flex-wrap:wrap}',
-      '.dshUsage-avatarPreview{width:56px;height:56px;border-radius:50%;object-fit:cover;background:var(--dsw-alias-bg-layer-2);box-shadow:0 0 0 .5px var(--dsw-alias-border-l1);flex:none}',
-      '.dshUsage-formActions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}',
-      '.dshUsage-btn{appearance:none;font:inherit;font-size:13px;line-height:20px;height:30px;padding:0 12px;border-radius:8px;border:.5px solid var(--dsw-alias-border-l2);background:transparent;color:var(--dsw-alias-label-primary);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box}',
-      '.dshUsage-btn:hover:not(:disabled){background:var(--dsw-alias-bg-layer-2)}',
-      '.dshUsage-btn[data-kind=primary]{background:var(--dsw-alias-brand-primary);border-color:transparent;color:#fff}',
-      '.dshUsage-btn[data-kind=primary]:hover:not(:disabled){background:var(--dsw-alias-brand-primary);opacity:.9}',
-      '.dshUsage-btn:disabled{opacity:.55;cursor:default}',
+      '.dshUsage-line{border-radius:8px;border:.5px solid transparent;padding:1px 10px;margin-left:-10px;margin-right:-10px;cursor:text;transition:background .12s ease,border-color .12s ease;max-width:440px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.dshUsage-line:hover{background:var(--dsw-alias-bg-layer-2);border-color:var(--dsw-alias-border-l2)}',
+      '.dshUsage-line:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:0}',
+      '.dshUsage-lineEmpty{opacity:.62}',
+      '.dshUsage-lineInput{appearance:none;font:inherit;color:inherit;text-align:center;background:var(--dsw-alias-bg-layer-2);border:.5px solid var(--dsw-alias-border-l2);border-radius:8px;padding:1px 10px;margin-left:-10px;margin-right:-10px;outline:none;box-sizing:border-box}',
+      '.dshUsage-lineInput:focus{border-color:var(--dsw-alias-brand-primary);box-shadow:0 0 0 3px rgba(59,110,240,.16);background:var(--dsw-alias-bg-layer-1)}',
       '.dshUsage-file{display:none}',
-      '.dshUsage-formError{font-size:12px;line-height:18px;color:var(--dsw-alias-state-error-primary)}',
-      '.dshUsage-hint{font-size:11px;line-height:16px;color:var(--dsw-alias-label-secondary)}',
+      '.dshUsage-profileError{font-size:12px;line-height:18px;color:var(--dsw-alias-state-error-primary);margin-top:8px}',
+      '.dshUsage-hint{font-size:11px;line-height:16px;color:var(--dsw-alias-label-secondary);margin-top:10px}',
       '.dshUsage-stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border:.5px solid var(--dsw-alias-border-l1);border-radius:12px;overflow:hidden}',
       '.dshUsage-stat{position:relative;padding:12px 8px;text-align:center;min-width:0}',
       '.dshUsage-stat + .dshUsage-stat::before{content:"";position:absolute;left:0;top:50%;transform:translateY(-50%);height:22px;border-left:.5px solid var(--dsw-alias-border-l2)}',
@@ -355,35 +391,160 @@ window.__ModuleLoader__.load({
     }
 
     /**
+     * One editable line of the header.
+     *
+     * Idle it reads as text, with a gray field appearing under the pointer so
+     * the line looks editable; a click swaps in an input that keeps the same
+     * size and weight. Enter or blur commits, Escape abandons the edit.
+     * @param {{ value: string, placeholder: string, className: string, label: string, unit: number, maxLength: number, onCommit: Function }} props - current value, fallbacks and the commit callback.
+     * @returns {React.ReactElement} the line, or the input it opens into.
+     */
+    function EditableLine(props) {
+      const [editing, setEditing] = useState(false);
+      const [draft, setDraft] = useState(props.value);
+      const inputRef = useRef(null);
+      const skipBlur = useRef(false);
+
+      useEffect(() => {
+        if (!editing) return;
+        const input = inputRef.current;
+        if (input === null) return;
+        input.focus();
+        input.select();
+      }, [editing]);
+
+      /** Open the input on the committed value. */
+      const open = () => {
+        setDraft(props.value);
+        setEditing(true);
+      };
+
+      if (editing) {
+        const characters = Array.from(draft);
+        const width = characters.reduce(
+          (sum, character) => sum + (/[\u3000-\u9fff\uff00-\uffef]/.test(character) ? props.unit * 1.7 : props.unit),
+          44,
+        );
+        return h('input', {
+          ref: inputRef,
+          className: `${props.className} dshUsage-lineInput`,
+          style: { width: `${String(Math.round(Math.max(140, Math.min(440, width))))}px` },
+          type: 'text',
+          value: draft,
+          maxLength: props.maxLength,
+          placeholder: props.placeholder,
+          'aria-label': props.label,
+          onChange: (event) => setDraft(event.target.value),
+          onBlur: () => {
+            setEditing(false);
+            if (skipBlur.current === true) {
+              skipBlur.current = false;
+              return;
+            }
+            const next = draft.trim();
+            if (next !== props.value) props.onCommit(next);
+          },
+          onKeyDown: (event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              event.currentTarget.blur();
+            } else if (event.key === 'Escape') {
+              event.preventDefault();
+              skipBlur.current = true;
+              setEditing(false);
+            }
+          },
+        });
+      }
+
+      const empty = props.value.length === 0;
+      return h('div', {
+        className: `${props.className} dshUsage-line${empty ? ' dshUsage-lineEmpty' : ''}`,
+        role: 'button',
+        tabIndex: 0,
+        title: props.label,
+        onClick: open,
+        onKeyDown: (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            open();
+          }
+        },
+      }, empty ? props.placeholder : props.value);
+    }
+
+    /**
+     * Camera mark the portrait shows while hovered or focused.
+     * @returns {React.ReactElement} the icon.
+     */
+    function CameraIcon() {
+      return h('svg', { viewBox: '0 0 24 24', width: 16, height: 16, fill: 'none', 'aria-hidden': 'true' },
+        h('path', {
+          d: 'M4.4 8.6h2.2l1.3-2h8.2l1.3 2h2.2a1.4 1.4 0 0 1 1.4 1.4v7.4a1.4 1.4 0 0 1-1.4 1.4H4.4A1.4 1.4 0 0 1 3 17.4V10a1.4 1.4 0 0 1 1.4-1.4Z',
+          stroke: 'currentColor',
+          strokeWidth: 1.5,
+          strokeLinejoin: 'round',
+        }),
+        h('circle', { cx: 12, cy: 13.6, r: 3.1, stroke: 'currentColor', strokeWidth: 1.5 }));
+    }
+
+    /**
      * Editable profile header.
      *
      * Nothing about the reader is baked into this bundle: the saved profile
-     * arrives with the report and the editor posts it back. With no portrait
-     * the header falls back to a monogram, and with no name at all it shows a
-     * neutral localized label, so a fresh install never looks like someone
-     * else's account.
+     * arrives with the report, and every edit posts the whole profile back.
+     * Hovering the portrait reveals a camera mark; hovering the name or handle
+     * reveals the gray field it opens into on click. With no portrait the
+     * header falls back to a monogram, and with no name it shows a neutral
+     * localized label, so a fresh install never looks like someone else's
+     * account.
      * @param {{ profile?: object, t: Function, onSaved?: Function }} props - saved profile, translator, save callback.
-     * @returns {React.ReactElement} the header, or its inline editor.
+     * @returns {React.ReactElement} the header.
      */
     function ProfileHeader(props) {
       const t = props.t;
       const profile = props.profile !== null && typeof props.profile === 'object' ? props.profile : {};
-      const savedName = typeof profile.name === 'string' ? profile.name : '';
-      const savedHandle = typeof profile.handle === 'string' ? profile.handle : '';
-      const savedAvatar = typeof profile.avatar === 'string' ? profile.avatar : '';
-      const [editing, setEditing] = useState(false);
-      const [draft, setDraft] = useState({ name: '', handle: '', avatar: '' });
-      const [status, setStatus] = useState({ saving: false, error: '' });
+      const name = typeof profile.name === 'string' ? profile.name : '';
+      const handle = typeof profile.handle === 'string' ? profile.handle : '';
+      const avatar = typeof profile.avatar === 'string' ? profile.avatar : '';
+      const [error, setError] = useState('');
+      const fileRef = useRef(null);
 
-      /** Show the saved values in the editor rather than the last draft. */
-      const openEditor = () => {
-        setDraft({ name: savedName, handle: savedHandle, avatar: savedAvatar });
-        setStatus({ saving: false, error: '' });
-        setEditing(true);
+      /**
+       * Persist one whole profile: the Host replaces its file, while a
+       * browser-local build writes its own storage.
+       * @param {{ name: string, handle: string, avatar: string | null }} next - profile to store.
+       * @returns {Promise<void>} resolves once the value is applied or the error shown.
+       */
+      const commit = async (next) => {
+        setError('');
+        try {
+          if (PROFILE_STORE.route !== undefined) {
+            const response = await fetch(new URL(PROFILE_STORE.route, document.baseURI).toString(), {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'content-type': 'application/json', accept: 'application/json' },
+              body: JSON.stringify(next),
+            });
+            let body = {};
+            try {
+              body = await response.json();
+            } catch {
+              /* a non-JSON failure still reports its status */
+            }
+            if (!response.ok) throw new Error(typeof body?.error === 'string' ? body.error : `HTTP ${response.status}`);
+            if (typeof props.onSaved === 'function') props.onSaved(body?.profile ?? next);
+            return;
+          }
+          writeLocalProfile(next);
+          if (typeof props.onSaved === 'function') props.onSaved(next);
+        } catch (caught) {
+          setError(t('profileFailed', { message: caught instanceof Error ? caught.message : String(caught) }));
+        }
       };
 
       /**
-       * Read the chosen file as a data URL, refusing what the Host would refuse.
+       * Read the chosen file and store it as the portrait straight away.
        * @param {object} event - change event of the hidden file input.
        * @returns {void}
        */
@@ -392,112 +553,57 @@ window.__ModuleLoader__.load({
         if (event?.target !== undefined) event.target.value = '';
         if (file === undefined) return;
         if (!/^image\//.test(String(file.type))) {
-          setStatus({ saving: false, error: t('avatarType') });
+          setError(t('avatarType'));
           return;
         }
-        if (Number(file.size) > 256 * 1024) {
-          setStatus({ saving: false, error: t('avatarTooLarge') });
+        if (Number(file.size) > AVATAR_LIMIT) {
+          setError(t('avatarTooLarge'));
           return;
         }
         const reader = new FileReader();
-        reader.onload = () => setDraft((previous) => ({ ...previous, avatar: String(reader.result) }));
-        reader.onerror = () => setStatus({ saving: false, error: t('avatarType') });
+        reader.onload = () => { void commit({ name, handle, avatar: String(reader.result) }); };
+        reader.onerror = () => setError(t('avatarType'));
         reader.readAsDataURL(file);
-        setStatus({ saving: false, error: '' });
       };
 
-      /** Post the draft and close the editor on success. */
-      const save = async () => {
-        setStatus({ saving: true, error: '' });
-        try {
-          const url = new URL('api/codex-usage.profile', document.baseURI).toString();
-          const response = await fetch(url, {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: { 'content-type': 'application/json', accept: 'application/json' },
-            body: JSON.stringify({
-              name: draft.name,
-              handle: draft.handle,
-              avatar: draft.avatar === '' ? null : draft.avatar,
-            }),
-          });
-          let body = {};
-          try {
-            body = await response.json();
-          } catch {
-            /* a non-JSON failure still reports its status */
-          }
-          if (!response.ok) throw new Error(typeof body?.error === 'string' ? body.error : `HTTP ${response.status}`);
-          if (typeof props.onSaved === 'function') props.onSaved(body?.profile ?? null);
-          setEditing(false);
-          setStatus({ saving: false, error: '' });
-        } catch (error) {
-          setStatus({ saving: false, error: error instanceof Error ? error.message : String(error) });
-        }
-      };
-
-      const displayName = savedName.length > 0 ? savedName : t('profileDefaultName');
-      const monogram = Array.from(displayName)[0] ?? '·';
-
-      if (!editing) {
-        return h('div', { className: 'dshUsage-profile' },
-          savedAvatar.length > 0
-            ? h('img', { className: 'dshUsage-avatar', src: savedAvatar, alt: '', width: 104, height: 104 })
-            : h('div', { className: 'dshUsage-avatar dshUsage-avatarMark', 'aria-hidden': 'true' }, monogram),
-          h('div', { className: 'dshUsage-name' }, displayName),
-          savedHandle.length > 0 ? h('div', { className: 'dshUsage-handle' }, savedHandle) : null,
-          h('button', { type: 'button', className: 'dshUsage-editBtn', onClick: openEditor }, t('editProfile')));
-      }
+      const shownName = name.length > 0 ? name : t('profileDefaultName');
+      const monogram = Array.from(shownName)[0] ?? '·';
+      const hintKey = PROFILE_STORE.local === undefined ? 'profileHint' : 'profileHintLocal';
 
       return h('div', { className: 'dshUsage-profile' },
-        h('div', { className: 'dshUsage-form' },
-          h('div', { className: 'dshUsage-field' },
-            h('label', { className: 'dshUsage-label', htmlFor: 'dshUsage-name' }, t('profileName')),
-            h('input', {
-              id: 'dshUsage-name',
-              className: 'dshUsage-input',
-              type: 'text',
-              maxLength: 48,
-              placeholder: t('profileNamePlaceholder'),
-              value: draft.name,
-              onChange: (event) => setDraft((previous) => ({ ...previous, name: event.target.value })),
-            })),
-          h('div', { className: 'dshUsage-field' },
-            h('label', { className: 'dshUsage-label', htmlFor: 'dshUsage-handle' }, t('profileHandle')),
-            h('input', {
-              id: 'dshUsage-handle',
-              className: 'dshUsage-input',
-              type: 'text',
-              maxLength: 48,
-              placeholder: t('profileHandlePlaceholder'),
-              value: draft.handle,
-              onChange: (event) => setDraft((previous) => ({ ...previous, handle: event.target.value })),
-            })),
-          h('div', { className: 'dshUsage-field' },
-            h('div', { className: 'dshUsage-label' }, t('profileAvatar')),
-            h('div', { className: 'dshUsage-avatarRow' },
-              draft.avatar.length > 0
-                ? h('img', { className: 'dshUsage-avatarPreview', src: draft.avatar, alt: '' })
-                : h('div', { className: 'dshUsage-avatarPreview dshUsage-avatarMark', 'aria-hidden': 'true' }, monogram),
-              h('label', { className: 'dshUsage-btn' },
-                t('chooseImage'),
-                h('input', { className: 'dshUsage-file', type: 'file', accept: 'image/*', onChange: pickAvatar })),
-              h('button', {
-                type: 'button',
-                className: 'dshUsage-btn',
-                onClick: () => setDraft((previous) => ({ ...previous, avatar: '' })),
-              }, t('removeImage')))),
-          status.error.length > 0 ? h('div', { className: 'dshUsage-formError' }, status.error) : null,
-          h('div', { className: 'dshUsage-hint' }, t('profileHint')),
-          h('div', { className: 'dshUsage-formActions' },
-            h('button', { type: 'button', className: 'dshUsage-btn', onClick: () => setEditing(false) }, t('cancel')),
-            h('button', {
-              type: 'button',
-              className: 'dshUsage-btn',
-              'data-kind': 'primary',
-              disabled: status.saving,
-              onClick: save,
-            }, status.saving ? t('saving') : t('save')))));
+        h('div', { className: 'dshUsage-avatarField' },
+          h('button', {
+            type: 'button',
+            className: 'dshUsage-avatarWrap',
+            title: t('changeAvatar'),
+            'aria-label': t('changeAvatar'),
+            onClick: () => { if (fileRef.current !== null) fileRef.current.click(); },
+          },
+          avatar.length > 0
+            ? h('img', { className: 'dshUsage-avatar', src: avatar, alt: '', width: 104, height: 104 })
+            : h('div', { className: 'dshUsage-avatar dshUsage-avatarMark', 'aria-hidden': 'true' }, monogram),
+          h('span', { className: 'dshUsage-avatarBadge', 'aria-hidden': 'true' }, h(CameraIcon))),
+          h('input', { ref: fileRef, className: 'dshUsage-file', type: 'file', accept: 'image/*', onChange: pickAvatar })),
+        h(EditableLine, {
+          className: 'dshUsage-name',
+          value: name,
+          placeholder: t('profileDefaultName'),
+          label: t('profileName'),
+          unit: 22,
+          maxLength: 48,
+          onCommit: (value) => { void commit({ name: value, handle, avatar: avatar === '' ? null : avatar }); },
+        }),
+        h(EditableLine, {
+          className: 'dshUsage-handle',
+          value: handle,
+          placeholder: t('profileHandlePlaceholder'),
+          label: t('profileHandle'),
+          unit: 13,
+          maxLength: 48,
+          onCommit: (value) => { void commit({ name, handle: value, avatar: avatar === '' ? null : avatar }); },
+        }),
+        error.length > 0 ? h('div', { className: 'dshUsage-profileError' }, error) : null,
+        h('div', { className: 'dshUsage-hint' }, t(hintKey)));
     }
 
     /**
@@ -819,7 +925,7 @@ window.__ModuleLoader__.load({
       const onProfileSaved = (profile) => {
         if (profile === null || typeof profile !== 'object') return;
         setState((previous) => (previous.data === undefined
-          ? previous
+          ? { ...previous, data: { profile } }
           : { ...previous, data: { ...previous.data, profile } }));
       };
 
@@ -874,7 +980,7 @@ window.__ModuleLoader__.load({
       return h(React.Fragment, null,
         h('style', { key: 'dsh-usage-style' }, CSS),
         h('div', { className: 'dshUsage-root' },
-          h(ProfileHeader, { profile: data === undefined ? undefined : data.profile, t, onSaved: onProfileSaved }),
+          h(ProfileHeader, { profile: initialProfile(data), t, onSaved: onProfileSaved }),
           loading, failure, empty, body, footer));
     }
 
